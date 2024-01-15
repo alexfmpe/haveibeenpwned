@@ -37,6 +37,7 @@ library
 executable readme
   build-depends:
     , base
+    , cryptonite
     , haveibeenpwned
     , http-client
     , http-client-tls  ^>=0.3.5

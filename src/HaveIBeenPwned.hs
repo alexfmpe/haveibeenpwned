@@ -17,11 +17,9 @@ import "cryptonite" Crypto.Hash
 import Control.Exception
 import Control.Monad.Logger
 import Control.Monad.Reader
-import Data.ByteString (ByteString)
 import qualified Data.ByteString.Lazy as LBS
 import Data.Text (Text)
 import qualified Data.Text as T
-import Data.Text.Encoding (encodeUtf8)
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding
 import Network.HTTP.Client
@@ -51,14 +49,14 @@ data HaveIBeenPwnedResult =
   deriving (Eq, Ord, Show)
 
 class Monad m => MonadPwned m where
-  -- | Returns the number of disclosures the supplied password has been seen in.
+  -- | Returns the number of disclosures the supplied password hash has been seen in.
   --
-  -- If this is not zero, do not use the supplied password, it is known to hackers.
+  -- If this is not zero, do not use the password, it is known to hackers.
   -- If it *is* zero, it might still not be safe, only that if it is
   -- compromised, that is not yet known.
   --
   -- https://haveibeenpwned.com/API/v2#SearchingPwnedPasswordsByRange
-  haveIBeenPwned :: Text -> m HaveIBeenPwnedResult
+  haveIBeenPwned :: Digest SHA1 -> m HaveIBeenPwnedResult
 
 newtype PwnedT m a = PwnedT { unPwnedT :: ReaderT HaveIBeenPwnedConfig m a }
   deriving (Functor, Applicative, Monad , MonadIO, MonadLogger
@@ -77,8 +75,10 @@ instance MonadReader r m => MonadReader r (PwnedT m) where
   reader = lift . reader
 
 instance (MonadLogger m, MonadIO m) => MonadPwned (PwnedT m) where
- haveIBeenPwned password = do
-  let (pfx, rest) = passwdDigest password
+ haveIBeenPwned digest = do
+  let hex = T.toUpper $ T.pack $ show digest
+  -- split into two parts, to agree with the hibp api.
+  let (pfx, rest) = (T.take 5 hex, T.drop 5 hex)
   cfg <- PwnedT ask
   let request = parseRequest_ $ T.unpack $ T.concat [_haveIBeenPwnedConfig_apihost cfg, "/", pfx]
   result' <- liftIO $ try $ httpLbs request (_haveIBeenPwnedConfig_manager cfg)
@@ -97,15 +97,6 @@ instance (MonadLogger m, MonadIO m) => MonadPwned (PwnedT m) where
       Status code phrase -> do
         $(logError) $ T.pack $ show $ Status code phrase
         return HaveIBeenPwnedResult_Error
-
-
--- | Get the sha1 digest for the supplied password, split into two parts, to agree with the
---   hibp api.
-passwdDigest :: Text -> (Text, Text)
-passwdDigest passwd = (T.take 5 digest, T.drop 5 digest)
-  where digest = T.toUpper $ T.pack $ show $ sha1 $ encodeUtf8 passwd
-        sha1 :: ByteString -> Digest SHA1
-        sha1 = hash
 
 -- | The hibp response is a line separated list of colon separated hash
 -- *suffixes* and a number indicating the number of times that password(hash)

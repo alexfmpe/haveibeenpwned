@@ -16,14 +16,16 @@ Example
 The example below can be built and run using `cabal build exe:readme` or `cabal
 repl exe:readme`.
 
-```haskell 
+```haskell
 
 > {-# LANGUAGE OverloadedStrings #-}
->
+
+> import Crypto.Hash
 > import Control.Monad.IO.Class (liftIO)
 > import Control.Monad.Logger (runStdoutLoggingT)
 > import Control.Exception (bracket_)
 > import Data.Text as T (pack)
+> import Data.Text.Encoding as T (encodeUtf8)
 > import Network.HTTP.Client (newManager)
 > import Network.HTTP.Client.TLS (tlsManagerSettings)
 > import System.IO (hFlush, stdout, hGetEcho, stdin, hSetEcho)
@@ -39,7 +41,7 @@ repl exe:readme`.
 >     mgr <- liftIO $ newManager tlsManagerSettings
 >     p <- liftIO $ getPassword
 >     let hibpEnv = HaveIBeenPwnedConfig mgr "https://api.pwnedpasswords.com/range"
->     p' <- flip runPwnedT hibpEnv $ haveIBeenPwned $ T.pack p
+>     p' <- flip runPwnedT hibpEnv $ haveIBeenPwned $ hash $ T.encodeUtf8 $ T.pack p
 >     liftIO $ case p' of
 >       HaveIBeenPwnedResult_Secure ->
 >         putStrLn "Your password does not appear in any known breaches.  Practice good password hygene."
