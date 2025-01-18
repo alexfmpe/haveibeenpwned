@@ -22,7 +22,7 @@ library
     , base             >=4.11.0   && <4.21
     , bytestring       >=0.10     && <0.13
     , cryptonite       >=0.24     && <0.31
-    , data-default     >=0.7.1    && <0.91
+    , data-default     >=0.7.1    && <0.9
     , http-client      >=0.5.13.1 && <0.8
     , http-types       ^>=0.12.1
     , monad-logger     ^>=0.3.29
